@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iBooth Pro | Wide 4x2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-url: url('https://files.catbox.moe/q3lcv3.jpeg');
+            --neon: linear-gradient(135deg, #00fff2, #7d2ae8, #ff2a6d);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body, html { height: 100vh; width: 100vw; font-family: 'Plus Jakarta Sans', sans-serif; color: white; overflow: hidden; background: #000; }
+
+        #master-bg { position: fixed; inset: 0; background: var(--bg-url) center/cover no-repeat; z-index: 1; transition: 0.8s ease; }
+        .overlay { position: fixed; inset: 0; backdrop-filter: blur(50px) brightness(0.4); background: rgba(0, 0, 0, 0.3); z-index: 2; }
+
+        .app { position: relative; z-index: 10; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 40px 20px; }
+
+        /* Viewfinder Diubah Jadi Lebar (Wide) */
+        .cam-frame {
+            position: relative; width: 90%; max-width: 380px; aspect-ratio: 4/2.5;
+            padding: 3px; border-radius: 25px; background: var(--neon);
+            box-shadow: 0 0 30px rgba(0,255,242,0.2);
+        }
+        .cam-inner { width: 100%; height: 100%; background: #000; border-radius: 22px; overflow: hidden; position: relative; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .mirror { transform: scaleX(-1); }
+
+        /* Filters */
+        .f-bw { filter: grayscale(1.1) contrast(1.2); }
+        .f-rona { filter: saturate(1.6) contrast(1.1); }
+        .f-retro { filter: sepia(0.4) contrast(1.1) hue-rotate(-10deg); }
+
+        .glass-dock { background: rgba(255,255,255,0.1); backdrop-filter: blur(20px); padding: 8px; border-radius: 30px; display: flex; gap: 5px; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-dock { padding: 10px 15px; border-radius: 20px; border: none; background: transparent; color: white; font-size: 0.65rem; font-weight: 800; cursor: pointer; }
+        .btn-dock.active { background: white; color: black; }
+
+        .main-ui { display: flex; align-items: center; justify-content: center; gap: 30px; width: 100%; }
+        .circle-btn { width: 55px; height: 55px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px); }
+        
+        .shutter-outer { width: 85px; height: 85px; border-radius: 50%; border: 3px solid white; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .shutter-inner { width: 68px; height: 68px; border-radius: 50%; background: white; box-shadow: 0 0 20px white; }
+
+        /* Preview Modal */
+        #modal { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(60px) brightness(0.5); padding: 20px; }
+        .result-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 30px; width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        
+        /* Polaroid Area Gede & Lebar */
+        .preview-box { width: 240px; height: 420px; border-radius: 10px; overflow-y: scroll; scrollbar-width: none; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .final-strip { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .final-strip img { width: 100%; aspect-ratio: 4/2.5; object-fit: cover; border-radius: 4px; }
+
+        .frame-opt { display: flex; gap: 10px; width: 100%; overflow-x: auto; scrollbar-width: none; padding: 5px; }
+        .dot { min-width: 40px; height: 40px; border-radius: 10px; cursor: pointer; border: 2px solid transparent; }
+        .dot.active { border-color: #00fff2; }
+
+        .btn-save { background: var(--neon); color: white; border: none; padding: 18px; border-radius: 40px; font-weight: 800; width: 100%; max-width: 280px; margin-top: 15px; cursor: pointer; }
+
+        #flash { position: fixed; inset: 0; background: white; opacity: 0; z-index: 999; pointer-events: none; }
+        #countdown { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 6rem; font-weight: 800; text-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body onclick="document.getElementById('player').play()">
+
+<audio id="player" loop><source src="https://files.catbox.moe/97poy6.mp3" type="audio/mpeg"></audio>
+
+<div id="master-bg"></div>
+<div class="overlay"></div>
+<div id="flash"></div>
+
+<div class="app">
+    <div style="font-size: 0.6rem; letter-spacing: 5px; opacity: 0.5; font-weight: 800;">WIDE 4x2 PRO</div>
+
+    <div class="cam-frame">
+        <div class="cam-inner">
+            <video id="v" autoplay playsinline class="mirror"></video>
+            <div id="countdown"></div>
+        </div>
+    </div>
+
+    <div class="glass-dock">
+        <button class="btn-dock" onclick="setFilter('f-bw', this)">B&W</button>
+        <button class="btn-dock" onclick="setFilter('f-rona', this)">RONA</button>
+        <button class="btn-dock" onclick="setFilter('f-retro', this)">RETRO</button>
+    </div>
+
+    <div class="main-ui">
+        <button class="circle-btn" onclick="swap()">🔄</button>
+        <div class="shutter-outer" onclick="takeSession()"><div class="shutter-inner"></div></div>
+        <button id="f-btn" class="circle-btn" onclick="tglFlash()">⚡</button>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="result-card">
+        <div class="frame-opt">
+            <div class="dot active" style="background: white;" onclick="setFrame('white', this)"></div>
+            <div class="dot" style="background: #111;" onclick="setFrame('black', this)"></div>
+            <div class="dot" style="background: linear-gradient(45deg, #ff9a9e, #fad0c4);" onclick="setFrame('pink', this)"></div>
+            <div class="dot" style="background: linear-gradient(45deg, #a1c4fd, #c2e9fb);" onclick="setFrame('holo', this)"></div>
+        </div>
+        <div class="preview-box">
+            <div class="final-strip" id="stp" style="background: white;"></div>
+        </div>
+    </div>
+    <button class="btn-save" onclick="saveCollection()">DOWNLOAD RESULT</button>
+    <button onclick="location.reload()" style="background:none; border:none; color:white; opacity:0.3; font-size:0.6rem; margin-top:15px;">RETAKE</button>
+</div>
+
+<canvas id="cvs" style="display:none"></canvas>
+
+<script>
+    const v = document.getElementById('v'), countdown = document.getElementById('countdown'), stp = document.getElementById('stp'), mbg = document.getElementById('master-bg');
+    let photos = [], currentFilter = '', isFlash = false, isFront = true, currentFrame = 'white', stream = null, isRunning = false;
+
+    async function startCam() {
+        if(stream) stream.getTracks().forEach(t => t.stop());
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: isFront ? 'user' : 'environment' } });
+        v.srcObject = stream;
+        v.className = isFront ? 'mirror ' + currentFilter : currentFilter;
+    }
+    startCam();
+
+    function swap() { isFront = !isFront; startCam(); }
+    function tglFlash() { isFlash = !isFlash; document.getElementById('f-btn').classList.toggle('active'); }
+
+    function setFilter(f, btn) {
+        if(currentFilter === f) { currentFilter = ''; btn.classList.remove('active'); }
+        else {
+            document.querySelectorAll('.btn-dock').forEach(b => b.classList.remove('active'));
+            currentFilter = f; btn.classList.add('active');
+        }
+        v.className = isFront ? 'mirror ' + currentFilter : currentFilter;
+    }
+
+    function setFrame(type, btn) {
+        document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+        btn.classList.add('active');
+        currentFrame = type;
+        const colors = { white: 'white', black: '#111', pink: 'linear-gradient(45deg, #ff9a9e, #fad0c4)', holo: 'linear-gradient(45deg, #a1c4fd, #c2e9fb)' };
+        stp.style.background = colors[type];
+    }
+
+    async function takeSession() {
+        if(isRunning) return;
+        isRunning = true; photos = []; stp.innerHTML = '';
+        for(let i=0; i<4; i++) {
+            for(let c=3; c>0; c--) { countdown.innerText = c; await new Promise(r => setTimeout(r, 800)); }
+            countdown.innerText = '';
+            if(isFlash) { document.getElementById('flash').style.opacity = 1; setTimeout(() => document.getElementById('flash').style.opacity = 0, 100); }
+            const data = snap();
+            photos.push(data);
+            const img = document.createElement('img'); img.src = data; stp.appendChild(img);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        document.getElementById('modal').style.display = 'flex';
+        isRunning = false;
+    }
+
+    function snap() {
+        const c = document.getElementById('cvs'), x = c.getContext('2d');
+        // Setting canvas ke Wide 4:2.5
+        c.width = 1200; c.height = 750;
+        if(currentFilter === 'f-bw') x.filter = 'grayscale(1.1) contrast(1.2)';
+        if(currentFilter === 'f-rona') x.filter = 'saturate(1.6) contrast(1.1)';
+        if(currentFilter === 'f-retro') x.filter = 'sepia(0.4) contrast(1.1)';
+        if(isFront) { x.translate(1200, 0); x.scale(-1, 1); }
+        x.drawImage(v, 0, 0, 1200, 750);
+        return c.toDataURL('image/jpeg', 0.9);
+    }
+
+    function saveCollection() {
+        const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+        canvas.width = 1080; canvas.height = 1920;
+        
+        // Background pake foto pertama di-blur (Glassy Effect)
+        const bgImg = new Image();
+        bgImg.src = photos[0];
+        bgImg.onload = () => {
+            ctx.filter = 'blur(60px) brightness(0.6) saturate(1.5)';
+            ctx.drawImage(bgImg, -100, -100, 1280, 2120);
+            ctx.filter = 'none';
+
+            const sw = 550, sh = 1600, sx = (1080-sw)/2, sy = (1920-sh)/2;
+            
+            // Draw Frame
+            if(currentFrame === 'white') ctx.fillStyle = "white";
+            else if(currentFrame === 'black') ctx.fillStyle = "#111";
+            else {
+                const grd = ctx.createLinearGradient(sx, sy, sx+sw, sy+sh);
+                if(currentFrame === 'pink') { grd.addColorStop(0, '#ff9a9e'); grd.addColorStop(1, '#fad0c4'); }
+                if(currentFrame === 'holo') { grd.addColorStop(0, '#a1c4fd'); grd.addColorStop(1, '#c2e9fb'); }
+                ctx.fillStyle = grd;
+            }
+            
+            ctx.shadowBlur = 40; ctx.shadowColor = "rgba(0,0,0,0.4)";
+            ctx.fillRect(sx, sy, sw, sh);
+            ctx.shadowBlur = 0;
+
+            let loaded = 0;
+            photos.forEach((src, i) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Posisi foto 4x2.5 lebar
+                    ctx.drawImage(img, sx+25, sy+30+(i*390), 500, 312);
+                    if(++loaded === 4) {
+                        const a = document.createElement('a'); a.download = 'iboot-wide.jpg';
+                        a.href = canvas.toDataURL('image/jpeg', 0.95); a.click();
+                    }
+                };
+                img.src = src;
+            });
+        };
+    }
+</script>
+</body>
+</html>
